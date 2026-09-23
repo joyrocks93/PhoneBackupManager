@@ -1,0 +1,35 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller / Build Artifacts
+/build/
+/dist/
+*.spec
+*.egg-info/
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# Logs and Databases
+logs/
+*.log
+*.sqlite
+*.db
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/

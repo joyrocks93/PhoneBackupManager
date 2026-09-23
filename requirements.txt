@@ -1,0 +1,6 @@
+# Phone Backup Manager — Python dependencies
+# Install with: pip install -r requirements.txt
+
+PySide6>=6.6.0
+comtypes>=1.4.1
+pyinstaller>=6.3.0
