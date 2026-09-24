@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Backup Manager</title>
+    <meta name="description" content="Wirelessly back up photos and videos from your Android phone to your PC.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: {
+                        'spin-slow': 'spin 2s linear infinite',
+                        'pulse-fast': 'pulse 1s ease-in-out infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth page transitions */
+        .page-section { animation: fadeIn 0.2s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        /* Mono scan text */
+        #scanPathText { font-family: 'Courier New', monospace; font-size: 11px; }
+    </style>
+</head>
+<body class="dark bg-slate-950 text-slate-100 font-sans flex h-screen overflow-hidden">
+
+    <!-- ── SIDEBAR ──────────────────────────────────────── -->
+    <aside class="w-56 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0">
+        <!-- Logo -->
+        <div class="px-5 py-5 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-base">📱</div>
+                <div>
+                    <h1 class="text-sm font-bold text-white leading-none">Phone Backup</h1>
+                    <p class="text-[10px] text-slate-500 tracking-widest font-medium uppercase mt-0.5">Manager</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Status Badge -->
+        <div class="px-4 py-3 border-b border-slate-800">
+            <div id="deviceStatusBadge" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-800 border border-slate-700">
+                <div class="relative">
+                    <div id="statusDot" class="w-2 h-2 rounded-full bg-slate-500"></div>
+                </div>
+                <div class="min-w-0">
+                    <p id="statusText" class="text-[10px] font-bold tracking-widest text-slate-400 uppercase">No Device</p>
+                    <p id="deviceNameBadge" class="text-xs font-semibold text-slate-300 truncate mt-0.5">—</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex flex-col gap-1 p-3 flex-1">
+            <button id="tabDashboard" onclick="switchTab('dashboard')"
+                class="nav-btn active group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-blue-400 bg-blue-500/10">
+                <span class="text-base">🏠</span> Dashboard
+            </button>
+            <button id="tabBackup" onclick="switchTab('backup')"
+                class="nav-btn group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <span class="text-base">💾</span> Backup
+            </button>
+            <button id="tabHistory" onclick="switchTab('history')"
+                class="nav-btn group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <span class="text-base">📋</span> History
+            </button>
+            <button id="tabSettings" onclick="switchTab('settings')"
+                class="nav-btn group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <span class="text-base">⚙️</span> Settings
+            </button>
+        </nav>
+
+        <!-- Footer: Theme Toggle + Version -->
+        <div class="p-3 border-t border-slate-800 flex flex-col gap-2">
+            <button onclick="toggleTheme()" id="themeToggleBtn"
+                class="flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all w-full">
+                <span id="themeToggleText">☀️ Light Mode</span>
+            </button>
+            <p class="text-center text-[10px] font-semibold tracking-widest text-slate-600 uppercase">ver. 1.0.0</p>
+        </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ─────────────────────────────────── -->
+    <main id="mainContent" class="flex-1 bg-slate-950 overflow-y-auto flex flex-col">
+
+        <!-- Dashboard -->
+        <div id="page-dashboard" class="page-section flex flex-col gap-5 p-8 flex-1">
+            <div id="page-dashboard-content"></div>
+        </div>
+
+        <!-- Backup -->
+        <div id="page-backup" class="page-section hidden flex flex-col gap-5 p-8 flex-1">
+            <div id="page-backup-content"></div>
+        </div>
+
+        <!-- History -->
+        <div id="page-history" class="page-section hidden flex flex-col gap-5 p-8 flex-1">
+            <div id="page-history-content"></div>
+        </div>
+
+        <!-- Settings -->
+        <div id="page-settings" class="page-section hidden flex flex-col gap-5 p-8 flex-1">
+            <div id="page-settings-content"></div>
+        </div>
+
+    </main>
+
+    <script src="pages/dashboard.js"></script>
+    <script src="pages/backup.js"></script>
+    <script src="pages/history.js"></script>
+    <script src="pages/settings.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

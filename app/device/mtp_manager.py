@@ -17,7 +17,7 @@ import datetime
 import io
 import os
 from dataclasses import dataclass, field
-from typing import Optional, Iterator, List
+from typing import Optional, Iterator, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -184,39 +184,61 @@ if _COMTYPES_AVAILABLE:
             COMMETHOD([], HRESULT, "RefreshDeviceList"),
             COMMETHOD([], HRESULT, "GetDeviceFriendlyName",
                 (["in"], LPWSTR, "pszPnPDeviceID"),
-                (["in", "out"], POINTER(LPWSTR), "pDeviceFriendlyName"),
-                (["in", "out"], POINTER(DWORD), "pcchDeviceFriendlyName")),
+                (["in"], ctypes.c_void_p, "pDeviceFriendlyName"),
+                (["in"], POINTER(DWORD), "pcchDeviceFriendlyName")),
             COMMETHOD([], HRESULT, "GetDeviceDescription",
                 (["in"], LPWSTR, "pszPnPDeviceID"),
-                (["in", "out"], POINTER(LPWSTR), "pDeviceDescription"),
-                (["in", "out"], POINTER(DWORD), "pcchDeviceDescription")),
+                (["in"], ctypes.c_void_p, "pDeviceDescription"),
+                (["in"], POINTER(DWORD), "pcchDeviceDescription")),
             COMMETHOD([], HRESULT, "GetDeviceManufacturer",
                 (["in"], LPWSTR, "pszPnPDeviceID"),
-                (["in", "out"], POINTER(LPWSTR), "pDeviceManufacturer"),
-                (["in", "out"], POINTER(DWORD), "pcchDeviceManufacturer")),
+                (["in"], ctypes.c_void_p, "pDeviceManufacturer"),
+                (["in"], POINTER(DWORD), "pcchDeviceManufacturer")),
             COMMETHOD([], HRESULT, "_GetDeviceProperty"),
             COMMETHOD([], HRESULT, "_GetPrivateDevices"),
         ]
 
     class IPortableDeviceValues(IUnknown):
         _iid_ = GUID(IID_IPortableDeviceValues)
+        # Vtable order verified against portabledevicetypes.dll type library
         _methods_ = [
+            # [0] GetCount — [in] DWORD* (caller pre-allocates)
+            COMMETHOD([], HRESULT, "GetCount",
+                (["in"], POINTER(DWORD), "pcelt")),
+            # [1] GetAt — index [in], key and value [in/out] (caller pre-allocates)
+            COMMETHOD([], HRESULT, "GetAt",
+                (["in"], DWORD, "index"),
+                (["in", "out"], POINTER(PROPERTYKEY), "pKey"),
+                (["in", "out"], POINTER(PROPVARIANT), "pValue")),
+            # [2] SetValue / GetValue (generic PROPVARIANT)
+            COMMETHOD([], HRESULT, "_SetValue"),
+            COMMETHOD([], HRESULT, "_GetValue"),
+            # [4] SetStringValue / GetStringValue
+            COMMETHOD([], HRESULT, "SetStringValue",
+                (["in"], POINTER(PROPERTYKEY), "key"),
+                (["in"], LPWSTR, "Value")),
+            COMMETHOD([], HRESULT, "GetStringValue",
+                (["in"], POINTER(PROPERTYKEY), "key"),
+                (["out"], POINTER(ctypes.c_wchar_p), "pValue")),
+            # [6] SetUnsignedIntegerValue / GetUnsignedIntegerValue
             COMMETHOD([], HRESULT, "SetUnsignedIntegerValue",
                 (["in"], POINTER(PROPERTYKEY), "key"),
-                (["in"], DWORD, "dwValue")),
+                (["in"], DWORD, "Value")),
             COMMETHOD([], HRESULT, "GetUnsignedIntegerValue",
                 (["in"], POINTER(PROPERTYKEY), "key"),
-                (["out"], POINTER(DWORD), "pdwValue")),
+                (["out"], POINTER(DWORD), "pValue")),
+            # [8-13] Signed int, Unsigned large int, Signed large int
             COMMETHOD([], HRESULT, "_SetSignedIntegerValue"),
             COMMETHOD([], HRESULT, "_GetSignedIntegerValue"),
             COMMETHOD([], HRESULT, "SetUnsignedLargeIntegerValue",
                 (["in"], POINTER(PROPERTYKEY), "key"),
-                (["in"], ULONGLONG, "ullValue")),
+                (["in"], ULONGLONG, "Value")),
             COMMETHOD([], HRESULT, "GetUnsignedLargeIntegerValue",
                 (["in"], POINTER(PROPERTYKEY), "key"),
-                (["out"], POINTER(ULONGLONG), "pullValue")),
+                (["out"], POINTER(ULONGLONG), "pValue")),
             COMMETHOD([], HRESULT, "_SetSignedLargeIntegerValue"),
             COMMETHOD([], HRESULT, "_GetSignedLargeIntegerValue"),
+            # [14-21] Float, Error, Key, Bool (stubs)
             COMMETHOD([], HRESULT, "_SetFloatValue"),
             COMMETHOD([], HRESULT, "_GetFloatValue"),
             COMMETHOD([], HRESULT, "_SetErrorValue"),
@@ -225,28 +247,27 @@ if _COMTYPES_AVAILABLE:
             COMMETHOD([], HRESULT, "_GetKeyValue"),
             COMMETHOD([], HRESULT, "_SetBoolValue"),
             COMMETHOD([], HRESULT, "_GetBoolValue"),
-            COMMETHOD([], HRESULT, "_SetIPortableDeviceValuesValue"),
-            COMMETHOD([], HRESULT, "_GetIPortableDeviceValuesValue"),
-            COMMETHOD([], HRESULT, "SetStringValue",
-                (["in"], POINTER(PROPERTYKEY), "key"),
-                (["in"], LPWSTR, "pszValue")),
-            COMMETHOD([], HRESULT, "GetStringValue",
-                (["in"], POINTER(PROPERTYKEY), "key"),
-                (["out"], POINTER(ctypes.c_void_p), "ppszValue")),
+            # [22-23] IUnknown value (stubs)
+            COMMETHOD([], HRESULT, "_SetIUnknownValue"),
+            COMMETHOD([], HRESULT, "_GetIUnknownValue"),
+            # [24-25] GUID
             COMMETHOD([], HRESULT, "_SetGuidValue"),
             COMMETHOD([], HRESULT, "GetGuidValue",
                 (["in"], POINTER(PROPERTYKEY), "key"),
                 (["out"], POINTER(GUID), "pValue")),
+            # [26-27] Buffer (stubs)
             COMMETHOD([], HRESULT, "_SetBufferValue"),
             COMMETHOD([], HRESULT, "_GetBufferValue"),
+            # [28-35] Collection types (stubs)
+            COMMETHOD([], HRESULT, "_SetIPortableDeviceValuesValue"),
+            COMMETHOD([], HRESULT, "_GetIPortableDeviceValuesValue"),
+            COMMETHOD([], HRESULT, "_SetIPortableDevicePropVariantCollectionValue"),
+            COMMETHOD([], HRESULT, "_GetIPortableDevicePropVariantCollectionValue"),
+            COMMETHOD([], HRESULT, "_SetIPortableDeviceKeyCollectionValue"),
+            COMMETHOD([], HRESULT, "_GetIPortableDeviceKeyCollectionValue"),
             COMMETHOD([], HRESULT, "_SetIPortableDeviceValuesCollectionValue"),
             COMMETHOD([], HRESULT, "_GetIPortableDeviceValuesCollectionValue"),
-            COMMETHOD([], HRESULT, "GetCount",
-                (["out"], POINTER(DWORD), "pcelt")),
-            COMMETHOD([], HRESULT, "GetAt",
-                (["in"], DWORD, "dwIndex"),
-                (["out"], POINTER(PROPERTYKEY), "pKey"),
-                (["out"], POINTER(PROPVARIANT), "pValue")),
+            # [36-39] Misc
             COMMETHOD([], HRESULT, "_RemoveValue"),
             COMMETHOD([], HRESULT, "_CopyValuesFromPropertyStore"),
             COMMETHOD([], HRESULT, "_CopyValuesToPropertyStore"),
@@ -385,6 +406,10 @@ if _COMTYPES_AVAILABLE:
             COMMETHOD([], HRESULT, "Open",
                 (["in"], LPWSTR, "pszPnPDeviceID"),
                 (["in"], POINTER(IPortableDeviceValues), "pClientInfo")),
+            COMMETHOD([], HRESULT, "SendCommand",
+                (["in"], DWORD, "dwFlags"),
+                (["in"], POINTER(IPortableDeviceValues), "pParameters"),
+                (["out"], POINTER(POINTER(IPortableDeviceValues)), "ppResults")),
             COMMETHOD([], HRESULT, "Content",
                 (["out"], POINTER(POINTER(IPortableDeviceContent)), "ppContent")),
             COMMETHOD([], HRESULT, "_Capabilities"),
@@ -448,7 +473,7 @@ def _make_resource_key() -> PROPERTYKEY:
 
 
 # ── WPD Key Collection builder ─────────────────────────────────────────────────
-def _build_key_collection(*keys: tuple) -> "POINTER(IPortableDeviceKeyCollection)":
+def _build_key_collection(*keys: tuple) -> "Any":
     kc = comtypes.client.CreateObject(
         CLSID_PortableDeviceKeyCollection,
         interface=IPortableDeviceKeyCollection,
@@ -466,7 +491,7 @@ class WPDDevice:
     High-level wrapper around one WPD/MTP connected device.
     """
 
-    CHUNK_SIZE = 1 * 1024 * 1024  # 1 MB read chunks
+    CHUNK_SIZE = 64 * 1024 * 1024  # 64 MB read chunks
 
     def __init__(self, pnp_id: str, friendly_name: str):
         if not _COMTYPES_AVAILABLE:
@@ -504,16 +529,13 @@ class WPDDevice:
         device.Open(self.pnp_id, client_info)
         self._device = device
 
-        content_ptr = POINTER(IPortableDeviceContent)()
-        device.Content(content_ptr)
+        content_ptr = device.Content()
         self._content = content_ptr
 
-        props_ptr = POINTER(IPortableDeviceProperties)()
-        content_ptr.Properties(props_ptr)
+        props_ptr = content_ptr.Properties()
         self._props = props_ptr
 
-        resources_ptr = POINTER(IPortableDeviceResources)()
-        content_ptr.Transfer(resources_ptr)
+        resources_ptr = content_ptr.Transfer()
         self._resources = resources_ptr
 
         logger.info(f"WPD device opened: {self.friendly_name}")
@@ -542,26 +564,29 @@ class WPDDevice:
         """Return list of child object IDs for the given parent."""
         if not self._content:
             return []
-        enum_ptr = POINTER(IEnumPortableDeviceObjectIDs)()
         try:
-            self._content.EnumObjects(0, parent_id, None, enum_ptr)
+            enum_ptr = self._content.EnumObjects(0, parent_id, None)
         except comtypes.COMError:
             return []
 
         ids: List[str] = []
-        BATCH = 32
         while True:
-            batch = (LPWSTR * BATCH)()
-            fetched = ULONG(0)
             try:
-                hr = enum_ptr.Next(BATCH, batch, ctypes.byref(fetched))
+                # Comtypes out-param logic: passing 1 returns (obj_id_string, fetched_count)
+                obj_id, fetched = enum_ptr.Next(1)
             except comtypes.COMError:
                 break
-            for i in range(fetched.value):
-                if batch[i]:
-                    ids.append(batch[i])
-            if fetched.value < BATCH:
+            except Exception as e:
+                logger.error(f"Error in Next: {e}")
                 break
+                
+            if fetched == 0:
+                break
+                
+            # If fetched > 0, obj_id is the string
+            if obj_id:
+                ids.append(obj_id)
+                
         return ids
 
     def get_object_info(self, object_id: str) -> Optional[MTPObject]:
@@ -578,9 +603,7 @@ class WPDDevice:
                 WPD_OBJECT_DATE_CREATED,
                 WPD_OBJECT_PARENT_ID,
             )
-            vals_ptr = POINTER(IPortableDeviceValues)()
-            self._props.GetValues(object_id, kc, vals_ptr)
-            vals = vals_ptr
+            vals = self._props.GetValues(object_id, kc)
 
             # Extract name (prefer original filename)
             name = self._get_str_value(vals, WPD_OBJECT_ORIGINAL_FILE_NAME) \
@@ -620,29 +643,34 @@ class WPDDevice:
 
     def _get_str_value(self, vals: IPortableDeviceValues, key_tup: tuple) -> Optional[str]:
         pk = _make_key(key_tup)
-        ptr = ctypes.c_void_p(0)
         try:
-            vals.GetStringValue(pk, ptr)
-            return _get_string_from_ptr(ptr.value)
-        except comtypes.COMError:
+            # comtypes returns the out c_wchar_p value directly (a Python str or None)
+            result = vals.GetStringValue(pk)
+            if isinstance(result, str):
+                return result or None
+            # Fallback: if comtypes returned an int pointer, read it
+            if isinstance(result, int) and result:
+                s = ctypes.wstring_at(result)
+                _ole32.CoTaskMemFree(ctypes.c_void_p(result))
+                return s or None
+            return None
+        except (comtypes.COMError, TypeError, OSError):
             return None
 
     def _get_guid_value(self, vals: IPortableDeviceValues, key_tup: tuple) -> Optional[str]:
         pk = _make_key(key_tup)
-        g = GUID()
         try:
-            vals.GetGuidValue(pk, g)
+            # comtypes returns GUID object directly
+            g = vals.GetGuidValue(pk)
             return str(g).upper()
-        except comtypes.COMError:
+        except (comtypes.COMError, TypeError):
             return None
 
     def _get_u64_value(self, vals: IPortableDeviceValues, key_tup: tuple) -> int:
         pk = _make_key(key_tup)
-        v = ULONGLONG(0)
         try:
-            vals.GetUnsignedLargeIntegerValue(pk, ctypes.byref(v))
-            return v.value
-        except comtypes.COMError:
+            return vals.GetUnsignedLargeIntegerValue(pk)
+        except (comtypes.COMError, TypeError):
             return 0
 
     def _get_date_value(self, vals: IPortableDeviceValues, key_tup: tuple) -> Optional[datetime.datetime]:
@@ -676,17 +704,13 @@ class WPDDevice:
             return False
 
         resource_key = _make_resource_key()
-        buf_size = DWORD(self.CHUNK_SIZE)
-        stream_ptr = POINTER(IStream)()
-
         try:
-            self._resources.GetStream(object_id, resource_key, STGM_READ, ctypes.byref(buf_size), stream_ptr)
+            buf_size_val, stream = self._resources.GetStream(object_id, resource_key, STGM_READ, self.CHUNK_SIZE)
         except comtypes.COMError as e:
             logger.error(f"GetStream failed for {object_id}: {e}")
             return False
 
-        stream = stream_ptr
-        read_size = max(buf_size.value, self.CHUNK_SIZE)
+        read_size = max(buf_size_val, self.CHUNK_SIZE)
         buf = (ctypes.c_char * read_size)()
 
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
@@ -698,18 +722,15 @@ class WPDDevice:
                     if cancel_check and cancel_check():
                         logger.info(f"Copy cancelled: {object_id}")
                         return False
-                    fetched = ULONG(0)
                     try:
-                        stream.Read(buf, read_size, ctypes.byref(fetched))
+                        fetched_val = stream.Read(buf, read_size)
                     except comtypes.COMError as e:
-                        if fetched.value == 0:
-                            break
                         logger.error(f"Stream read error: {e}")
                         return False
-                    if fetched.value == 0:
+                    if fetched_val == 0:
                         break
-                    f.write(bytes(buf[:fetched.value]))
-                    total_written += fetched.value
+                    f.write(bytes(buf[:fetched_val]))
+                    total_written += fetched_val
                     if progress_cb:
                         progress_cb(total_written)
             return True
@@ -739,22 +760,41 @@ class WPDDevice:
 
         for child_id in child_ids:
             obj = self.get_object_info(child_id)
+
+            # Determine if this is a folder/container:
+            # 1. metadata says so, OR
+            # 2. metadata read failed (content_type_guid is empty) — probe for children
+            is_container = False
             if obj is None:
-                continue
-            child_path = f"{virtual_path}/{obj.name}" if virtual_path else obj.name
-            obj.virtual_path = child_path
+                is_container = True  # always try to recurse unknown objects
+            elif obj.is_folder:
+                is_container = True
+            elif not obj.content_type_guid:
+                # Could not read content type (e.g. storage/functional object).
+                # Peek at children to decide.
+                try:
+                    probe = self.list_children(child_id)
+                    is_container = len(probe) > 0
+                except Exception:
+                    is_container = False
+
+            child_name = (obj.name if obj else child_id)
+            child_path = f"{virtual_path}/{child_name}" if virtual_path else child_name
+            if obj:
+                obj.virtual_path = child_path
 
             # Check exclusions
             if excluded_paths:
                 skip = False
                 for ex in excluded_paths:
-                    if child_path.lower().startswith(ex.lower()):
+                    ex_lower = ex.lower()
+                    if child_name.lower() == ex_lower or child_path.lower() == ex_lower or child_path.lower().startswith(ex_lower + "/"):
                         skip = True
                         break
                 if skip:
                     continue
 
-            if obj.is_folder:
+            if is_container:
                 yield from self.walk(
                     parent_id=child_id,
                     virtual_path=child_path,
@@ -762,7 +802,7 @@ class WPDDevice:
                     max_depth=max_depth,
                     excluded_paths=excluded_paths,
                 )
-            else:
+            elif obj is not None:
                 yield obj
 
 

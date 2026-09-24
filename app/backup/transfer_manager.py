@@ -16,7 +16,7 @@ from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
 
-CHUNK_SIZE = 1 * 1024 * 1024   # 1 MB
+CHUNK_SIZE = 64 * 1024 * 1024   # 64 MB
 
 
 class TransferResult:
@@ -43,6 +43,7 @@ def transfer_file(
     compute_hash: bool = False,
     progress_cb: Optional[Callable[[int, int], None]] = None,
     cancel_check: Optional[Callable[[], bool]] = None,
+    chunk_config: Optional[dict] = None,
 ) -> TransferResult:
     """
     Copy a single file from the MTP device to dest_path.
@@ -74,17 +75,26 @@ def transfer_file(
     resource_key.fmtid = comtypes.GUID(WPD_RESOURCE_DEFAULT_FMTID)
     resource_key.pid   = 0
 
-    buf_size = DWORD(CHUNK_SIZE)
-    stream_ptr = POINTER(IStream)()
+    chunk_size = 4 * 1024 * 1024 # default fallback
+    
+    if chunk_config:
+        ext = os.path.splitext(dest_path)[1].lower()
+        if ext in chunk_config.get("ext_videos", []):
+            chunk_size = int(chunk_config.get("chunk_size_videos_mb", 8)) * 1024 * 1024
+        elif ext in chunk_config.get("ext_photos", []):
+            chunk_size = int(chunk_config.get("chunk_size_photos_mb", 1)) * 1024 * 1024
+        else:
+            chunk_size = int(chunk_config.get("chunk_size_others_mb", 16)) * 1024 * 1024
 
     try:
-        resources.GetStream(object_id, resource_key, STGM_READ, ctypes.byref(buf_size), stream_ptr)
+        # GetStream returns (optimal_buffer_size, IStream) because pdwOptimalBufferSize is [in,out] and ppStream is [out]
+        buf_size_val, stream = resources.GetStream(object_id, resource_key, STGM_READ, chunk_size)
     except comtypes.COMError as e:
         result.error = f"GetStream failed: {e}"
         logger.error(result.error)
         return result
 
-    actual_chunk = max(buf_size.value, CHUNK_SIZE)
+    actual_chunk = max(buf_size_val, chunk_size)
     buf = (ctypes.c_char * actual_chunk)()
 
     hasher = hashlib.sha256() if compute_hash else None
@@ -96,24 +106,22 @@ def transfer_file(
                     result.error = "Cancelled"
                     return result
 
-                fetched = ULONG(0)
                 try:
-                    stream_ptr.Read(buf, actual_chunk, ctypes.byref(fetched))
+                    # IStream.Read returns fetched count because pcbRead is [out]
+                    fetched_val = stream.Read(buf, actual_chunk)
                 except comtypes.COMError as e:
-                    if fetched.value == 0:
-                        break
                     result.error = f"Read error: {e}"
                     logger.error(result.error)
                     return result
 
-                if fetched.value == 0:
+                if fetched_val == 0:
                     break
 
-                data = bytes(buf[:fetched.value])
-                f.write(data)
+                mv = memoryview(buf)[:fetched_val]
+                f.write(mv)
                 if hasher:
-                    hasher.update(data)
-                result.bytes_written += fetched.value
+                    hasher.update(mv)
+                result.bytes_written += fetched_val
 
                 if progress_cb:
                     progress_cb(result.bytes_written, file_size)

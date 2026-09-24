@@ -7,7 +7,7 @@ setlocal
 
 echo.
 echo ============================================================
-echo  Phone Backup Manager — EXE Build
+echo  Phone Backup Manager - EXE Build
 echo ============================================================
 echo.
 
@@ -25,7 +25,7 @@ echo.
 echo [1/3] Installing dependencies...
 py -m pip install --upgrade pip >nul
 py -m pip install -r requirements.txt
-if errorlevel 1 (
+if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to install dependencies.
     pause
     exit /b 1
@@ -49,7 +49,7 @@ py -m PyInstaller ^
     --onedir ^
     --windowed ^
     --name "PhoneBackupManager" ^
-    --icon "assets\icon.png" ^
+    --icon "assets\icon.ico" ^
     --add-data "assets;assets" ^
     --hidden-import "comtypes.stream" ^
     --hidden-import "comtypes.persist" ^

@@ -29,6 +29,11 @@ DEFAULTS: dict[str, Any] = {
     "max_concurrent_transfers": 1,
     "min_file_size_kb": 0,
     "max_file_size_mb": 0,           # 0 = no limit
+    "chunk_size_videos_mb": 8,
+    "chunk_size_photos_mb": 1,
+    "chunk_size_others_mb": 16,
+    "ext_videos": [".mp4", ".mov", ".mkv", ".avi", ".wmv", ".flv", ".webm"],
+    "ext_photos": [".jpg", ".jpeg", ".png", ".heic", ".gif", ".webp", ".bmp", ".dng", ".raw"],
     "excluded_folders": [
         "Android/data",
         "Android/obb",
@@ -40,6 +45,46 @@ DEFAULTS: dict[str, Any] = {
 
 _CONFIG_DIR = Path.home() / ".phone_backup_manager"
 _CONFIG_FILE = _CONFIG_DIR / "settings.json"
+_HISTORY_FILE = _CONFIG_DIR / "history.json"
+
+class HistoryManager:
+    """Manages backup history JSON."""
+    @staticmethod
+    def add_entry(device: str, status: str, files_copied: int):
+        from datetime import datetime
+        try:
+            _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            history = []
+            if _HISTORY_FILE.exists():
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    history = json.load(f)
+            
+            entry = {
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "device": device,
+                "status": status,
+                "files": files_copied
+            }
+            history.insert(0, entry)  # Add to top
+            
+            # Keep last 50
+            if len(history) > 50:
+                history = history[:50]
+                
+            with open(_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving history: {e}")
+
+    @staticmethod
+    def get_history():
+        try:
+            if _HISTORY_FILE.exists():
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading history: {e}")
+        return []
 
 
 class Settings:
@@ -133,6 +178,10 @@ class Settings:
     def theme(self) -> str:
         return self._data["theme"]
 
+    @theme.setter
+    def theme(self, v: str):
+        self._data["theme"] = v
+
     @property
     def excluded_folders(self) -> list:
         return self._data.get("excluded_folders", [])
@@ -151,8 +200,8 @@ class Settings:
     PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".heic", ".webp", ".gif", ".bmp", ".tiff", ".raw", ".dng"}
     VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".3gp", ".webm", ".flv", ".wmv", ".m4v", ".ts"}
 
-    def allowed_extensions(self) -> set[str]:
-        exts: set[str] = set()
+    def allowed_extensions(self) -> "set[str]":
+        exts: "set[str]" = set()
         if self.include_photos:
             exts |= self.PHOTO_EXTENSIONS
         if self.include_videos:

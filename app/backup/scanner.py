@@ -96,16 +96,20 @@ class Scanner:
         self,
         wpd_device,
         progress_cb=None,
+        extra_excluded: set = None,
     ) -> ScanResult:
         """
         Recursively scan the device for media files.
         progress_cb(count, current_path) called periodically.
+        extra_excluded: additional folder names chosen by the user in the UI.
         """
         import time
         self._cancelled = False
         settings = get_settings()
         allowed_ext = settings.allowed_extensions()
         excluded = set(settings.excluded_folders)
+        if extra_excluded:
+            excluded.update(extra_excluded)
         min_size = settings.min_file_size_bytes
         max_size = settings.max_file_size_bytes
 
