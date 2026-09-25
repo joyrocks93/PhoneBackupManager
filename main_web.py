@@ -19,8 +19,13 @@ def main():
     
     api = WebApi()
     
-    # Path to our web directory
-    web_dir = os.path.join(os.path.dirname(__file__), 'web', 'index.html')
+    # Path to our web directory (supports both dev and PyInstaller builds)
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(__file__)
+    
+    web_dir = os.path.join(base_path, 'web', 'index.html')
     
     # Create the webview window
     window = webview.create_window(
@@ -32,8 +37,10 @@ def main():
         min_size=(900, 600)
     )
     
+    icon_path = os.path.join(base_path, 'assets', 'icon.ico')
+    
     # Start the application
-    webview.start()
+    webview.start(icon=icon_path)
     
     # Uninitialize COM when app closes
     comtypes.CoUninitialize()

@@ -474,16 +474,16 @@ async function saveSettings() {
 function applyTheme(theme) {
     const toggleText = el('themeToggleText');
     if (theme === 'light') {
-        document.body.classList.remove('dark');
+        document.documentElement.classList.remove('dark');
         if (toggleText) toggleText.innerText = '🌙 Dark Mode';
     } else {
-        document.body.classList.add('dark');
+        document.documentElement.classList.add('dark');
         if (toggleText) toggleText.innerText = '☀️ Light Mode';
     }
 }
 
 function toggleTheme() {
-    const isDark = document.body.classList.contains('dark');
+    const isDark = document.documentElement.classList.contains('dark');
     applyTheme(isDark ? 'light' : 'dark');
     window.pywebview.api.save_settings({ theme: isDark ? 'light' : 'dark' }).catch(e => console.error(e));
 }

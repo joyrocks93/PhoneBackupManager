@@ -340,7 +340,7 @@ class WebApi:
                         logger.error(f"Failed to copy {mf.filename}: {res.error}")
             from app.config.settings import HistoryManager
             status_str = "Cancelled" if self._backup_cancelled else "Success"
-            HistoryManager.add_entry(device_name, status_str, copied_files)
+            HistoryManager.add_entry(phone.friendly_name, status_str, copied_files)
             
             final_msg = "Backup cancelled!" if self._backup_cancelled else "Backup complete!"
             report_progress(100, f"{final_msg} {copied_files} files copied.", speed_str="Done", force=True)
@@ -349,7 +349,8 @@ class WebApi:
         except Exception as e:
             from app.config.settings import HistoryManager
             # We don't have copied_files in scope if it fails before loop, so fallback to 0
-            HistoryManager.add_entry(device_name, "Failed", locals().get('copied_files', 0))
+            safe_device_name = phone.friendly_name if 'phone' in locals() and phone else "Unknown Device"
+            HistoryManager.add_entry(safe_device_name, "Failed", locals().get('copied_files', 0))
             logger.error(f"Backup failed: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
         finally:

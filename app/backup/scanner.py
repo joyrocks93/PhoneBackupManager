@@ -9,7 +9,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Iterator, Set
 
-from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
+try:
+    from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
+    _QT_AVAILABLE = True
+except ImportError:
+    _QT_AVAILABLE = False
 
 from app.config.settings import get_settings
 
@@ -74,10 +78,11 @@ class ScanResult:
         return len(self.photos) + len(self.videos)
 
 
-class ScannerSignals(QObject):
-    progress  = Signal(int, str)      # (files_found, current_path)
-    finished  = Signal(object)        # ScanResult
-    error     = Signal(str)
+if _QT_AVAILABLE:
+    class ScannerSignals(QObject):
+        progress  = Signal(int, str)      # (files_found, current_path)
+        finished  = Signal(object)        # ScanResult
+        error     = Signal(str)
 
 
 class Scanner:
@@ -174,28 +179,29 @@ class Scanner:
         return result
 
 
-class ScanWorker(QRunnable):
-    """QRunnable that runs Scanner in a thread pool."""
+if _QT_AVAILABLE:
+    class ScanWorker(QRunnable):
+        """QRunnable that runs Scanner in a thread pool."""
 
-    def __init__(self, wpd_device, signals: ScannerSignals):
-        super().__init__()
-        self._device = wpd_device
-        self.signals = signals
-        self._scanner = Scanner()
+        def __init__(self, wpd_device, signals: ScannerSignals):
+            super().__init__()
+            self._device = wpd_device
+            self.signals = signals
+            self._scanner = Scanner()
 
-    def run(self):
-        try:
-            result = self._scanner.scan(
-                self._device,
-                progress_cb=lambda n, p: self.signals.progress.emit(n, p),
-            )
-            self.signals.finished.emit(result)
-        except Exception as e:
-            logger.error(f"ScanWorker error: {e}", exc_info=True)
-            self.signals.error.emit(str(e))
+        def run(self):
+            try:
+                result = self._scanner.scan(
+                    self._device,
+                    progress_cb=lambda n, p: self.signals.progress.emit(n, p),
+                )
+                self.signals.finished.emit(result)
+            except Exception as e:
+                logger.error(f"ScanWorker error: {e}", exc_info=True)
+                self.signals.error.emit(str(e))
 
-    def cancel(self):
-        self._scanner.cancel()
+        def cancel(self):
+            self._scanner.cancel()
 
 
 def _get_ext(filename: str) -> str:

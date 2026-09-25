@@ -1,13 +1,13 @@
 @echo off
 REM ============================================================
-REM  Phone Backup Manager — Build Script
-REM  Creates a standalone PhoneBackupManager.exe in dist\
+REM  Phone Backup Manager — Web UI Build Script
+REM  Creates a standalone PhoneBackupManager_Web.exe in dist\
 REM ============================================================
 setlocal
 
 echo.
 echo ============================================================
-echo  Phone Backup Manager - EXE Build
+echo  Phone Backup Manager - Web UI EXE Build
 echo ============================================================
 echo.
 
@@ -24,7 +24,7 @@ REM --- Install / upgrade dependencies ---
 echo.
 echo [1/3] Installing dependencies...
 py -m pip install --upgrade pip >nul
-py -m pip install -r requirements.txt
+py -m pip install -r requirements.txt pywebview
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to install dependencies.
     pause
@@ -48,21 +48,20 @@ py -m PyInstaller ^
     --noconfirm ^
     --onedir ^
     --windowed ^
-    --name "PhoneBackupManager" ^
+    --name "PhoneBackupManager_Web" ^
     --icon "assets\icon.ico" ^
     --add-data "assets;assets" ^
+    --add-data "web;web" ^
     --hidden-import "comtypes.stream" ^
     --hidden-import "comtypes.persist" ^
     --hidden-import "comtypes.typeinfo" ^
-    --hidden-import "PySide6.QtSvg" ^
-    --hidden-import "PySide6.QtXml" ^
     --collect-submodules "comtypes" ^
-    --collect-submodules "PySide6" ^
     --exclude-module "tkinter" ^
     --exclude-module "matplotlib" ^
     --exclude-module "numpy" ^
     --exclude-module "scipy" ^
-    main.py
+    --exclude-module "PySide6" ^
+    main_web.py
 
 if errorlevel 1 (
     echo.
@@ -75,7 +74,7 @@ echo.
 echo ============================================================
 echo  BUILD SUCCESSFUL!
 echo.
-echo  Output: dist\PhoneBackupManager\PhoneBackupManager.exe
+echo  Output: dist\PhoneBackupManager_Web\PhoneBackupManager_Web.exe
 echo ============================================================
 echo.
 pause
